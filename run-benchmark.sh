@@ -16,9 +16,10 @@ printf "\n\n"
 
 export IMAGE="node:24.16.0-slim"
 PREPARE="rm -rf node_modules package-lock.json /tmp/npm-bench-cache && export IMAGE=$IMAGE"
+RUNS=5
 
 hyperfine \
-  --runs 3 \
+  --runs $RUNS \
   --prepare "$PREPARE" \
   --export-markdown results.md \
   --export-json results.json \

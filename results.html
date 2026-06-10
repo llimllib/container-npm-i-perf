@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Container Performance Results</title>
+    <script type="module">
+      import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+      import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+      const resp = await fetch("results.json");
+      const data = await resp.json();
+      const results = data.results;
+
+      // Flatten individual run times for dot/box plots
+      const runs = results.flatMap((r) =>
+        r.times.map((t, i) => ({
+          command: r.command,
+          time: t,
+          run: i + 1,
+          memory: r.memory_usage_byte[i],
+        })),
+      );
+
+      // Summary data sorted by median
+      const summary = results
+        .map((r) => ({
+          command: r.command,
+          mean: r.mean,
+          median: r.median,
+          min: r.min,
+          max: r.max,
+          stddev: r.stddev,
+        }))
+        .sort((a, b) => a.median - b.median);
+
+      // ── Chart 1: Bar chart of mean time with error bars ──
+      const barChart = Plot.plot({
+        title: "Mean Execution Time by Runtime",
+        subtitle: "Error bars show ±1 standard deviation",
+        width: 700,
+        height: 400,
+        marginLeft: 220,
+        x: { label: "Time (seconds)", grid: true },
+        y: { label: null },
+        color: { scheme: "Observable10" },
+        marks: [
+          Plot.barX(summary, {
+            y: "command",
+            x: "mean",
+            fill: "command",
+            sort: { y: "x" },
+          }),
+          Plot.ruleX(summary, {
+            y: "command",
+            x: (d) => d.mean - d.stddev,
+            x2: (d) => d.mean + d.stddev,
+            stroke: "#333",
+            strokeWidth: 2,
+          }),
+          Plot.text(summary, {
+            y: "command",
+            x: "mean",
+            text: (d) => `${d.mean.toFixed(1)}s`,
+            dx: 30,
+            fill: "#333",
+            fontSize: 13,
+            fontWeight: 600,
+          }),
+          Plot.ruleX([0]),
+        ],
+      });
+
+      // ── Chart 2: Individual runs as dots + median line ──
+      const dotChart = Plot.plot({
+        title: "Individual Run Times",
+        subtitle: "dashed line is the mean",
+        width: 700,
+        height: 200,
+        marginLeft: 220,
+        x: { label: "Time (seconds)", grid: true },
+        fy: { label: null, padding: 0.15, domain: summary.map(d => d.command) },
+        color: { scheme: "Observable10" },
+        marks: [
+          Plot.ruleX(summary, {
+            x: "mean",
+            fy: "command",
+            stroke: "#333",
+            strokeWidth: 2,
+            strokeDasharray: "4 3",
+          }),
+          Plot.dot(
+            runs,
+            Plot.dodgeY({
+              x: "time",
+              fy: "command",
+              fill: "command",
+              r: 6,
+              opacity: 0.8,
+              anchor: "middle",
+            }),
+          ),
+          Plot.ruleX([0]),
+        ],
+      });
+
+      // ── Chart 3: Min / Median / Max range chart ──
+      const rangeChart = Plot.plot({
+        title: "Time Range (Min → Max)",
+        subtitle: "Bar spans min to max; tick marks the median",
+        width: 700,
+        height: 400,
+        marginLeft: 220,
+        x: { label: "Time (seconds)", grid: true },
+        y: { label: null },
+        color: { scheme: "Observable10" },
+        marks: [
+          Plot.barX(summary, {
+            y: "command",
+            x1: "min",
+            x2: "max",
+            fill: "command",
+            fillOpacity: 0.35,
+            sort: { y: { value: "x1" } },
+          }),
+          Plot.tickX(summary, {
+            y: "command",
+            x: "median",
+            stroke: "#333",
+            strokeWidth: 3,
+          }),
+          Plot.ruleX([0]),
+        ],
+      });
+
+      // ── Chart 4: Memory usage ──
+      const memSummary = results
+        .map((r) => ({
+          command: r.command,
+          memory_mb: d3.mean(r.memory_usage_byte) / 1e6,
+        }))
+        .sort((a, b) => a.memory_mb - b.memory_mb);
+
+      const memChart = Plot.plot({
+        title: "Average Memory Usage",
+        width: 700,
+        height: 400,
+        marginLeft: 220,
+        x: { label: "Memory (MB)", grid: true },
+        y: { label: null },
+        color: { scheme: "Observable10" },
+        marks: [
+          Plot.barX(memSummary, {
+            y: "command",
+            x: "memory_mb",
+            fill: "command",
+            sort: { y: "x" },
+          }),
+          Plot.text(memSummary, {
+            y: "command",
+            x: "memory_mb",
+            text: (d) => `${d.memory_mb.toFixed(0)} MB`,
+            dx: 30,
+            fill: "#333",
+            fontSize: 13,
+            fontWeight: 600,
+          }),
+          Plot.ruleX([0]),
+        ],
+      });
+
+      // ── Render ──
+      document.getElementById("chart-bar").append(barChart);
+      document.getElementById("chart-dots").append(dotChart);
+      document.getElementById("chart-range").append(rangeChart);
+      document.getElementById("chart-memory").append(memChart);
+
+      // ── Summary table ──
+      const table = document.getElementById("summary-table");
+      const thead = table.querySelector("thead tr");
+      const tbody = table.querySelector("tbody");
+      const cols = [
+        "Command",
+        "Mean (s)",
+        "Median (s)",
+        "Min (s)",
+        "Max (s)",
+        "Std Dev (s)",
+      ];
+      cols.forEach((c) => {
+        const th = document.createElement("th");
+        th.textContent = c;
+        thead.append(th);
+      });
+      summary.forEach((r) => {
+        const tr = document.createElement("tr");
+        [
+          r.command,
+          r.mean.toFixed(2),
+          r.median.toFixed(2),
+          r.min.toFixed(2),
+          r.max.toFixed(2),
+          r.stddev.toFixed(2),
+        ].forEach((v) => {
+          const td = document.createElement("td");
+          td.textContent = v;
+          tr.append(td);
+        });
+        tbody.append(tr);
+      });
+    </script>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #1a1a1a;
+        background: #fafafa;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 2rem;
+      }
+
+      section {
+        margin-bottom: 3rem;
+      }
+
+      section > div {
+        display: flex;
+        justify-content: center;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+
+      th,
+      td {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+
+      th {
+        background: #f0f0f0;
+        font-weight: 600;
+      }
+
+      tr:hover td {
+        background: #f5f5ff;
+      }
+
+      h2 {
+        font-size: 1.1rem;
+        color: #444;
+        margin-bottom: 0.25rem;
+      }
+
+      h3 {
+        font-size: 0.8rem;
+        color: #444;
+        margin-bottom: 0.75rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Container Performance Benchmark</h1>
+    <p class="subtitle">Comparing execution times across container runtimes</p>
+
+    <section>
+      <div id="chart-bar"></div>
+    </section>
+
+    <section>
+      <div id="chart-dots"></div>
+    </section>
+
+    <section>
+      <div id="chart-range"></div>
+    </section>
+
+    <section>
+      <div id="chart-memory"></div>
+    </section>
+
+    <section>
+      <h2>Summary Table</h2>
+      <table id="summary-table">
+        <thead>
+          <tr></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </body>
+</html>
