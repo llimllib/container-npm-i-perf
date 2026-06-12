@@ -73,13 +73,17 @@
 
       // ── Chart 2: Individual runs as dots + median line ──
       const dotChart = Plot.plot({
-        title: "Individual Run Times",
+        title: "npm install time",
         subtitle: "dashed line is the mean",
         width: 700,
         height: 200,
         marginLeft: 220,
         x: { label: "Time (seconds)", grid: true },
-        fy: { label: null, padding: 0.15, domain: summary.map(d => d.command) },
+        fy: {
+          label: null,
+          padding: 0.15,
+          domain: summary.map((d) => d.command),
+        },
         color: { scheme: "Observable10" },
         marks: [
           Plot.ruleX(summary, {
