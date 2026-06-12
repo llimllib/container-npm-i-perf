@@ -8,6 +8,7 @@ printf "| software | version |\n"
 printf "|:---|:---|\n"
 printf "| node | %s |\n" "$(node --version)"
 printf "| npm | %s |\n" "$(npm --version)"
+printf "| docker desktop | %s |\n" "$(docker --context desktop-linux version --format '{{.Server.Version}}' 2>/dev/null || echo 'N/A')"
 printf "| container | %s |\n" "$(container --version)"
 printf "| orb | %s |\n" "$(orb version | tr '\n' ' ')"
 printf "| colima | %s |\n" "$(colima --version)"
@@ -23,6 +24,8 @@ hyperfine \
   --prepare "$PREPARE" \
   --export-markdown results.md \
   --export-json results.json \
+  --command-name "docker desktop (volume mount)" \
+    "bash bench-docker-desktop.sh" \
   --command-name "apple container (volume mount)" \
     "bash bench-container.sh" \
   --command-name "native (host)" \
@@ -31,3 +34,6 @@ hyperfine \
     "bash bench-colima.sh" \
   --command-name "orbstack (volume mount)" \
     "bash bench-orbstack.sh"
+
+# Generate results table from results.json
+python result-table.py
