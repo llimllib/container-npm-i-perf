@@ -49,7 +49,7 @@ all times in seconds. Test was done on a macbook m2 max with 32gb of memory, con
 | apple container | 59.150 | 5.284 | 53.463 | 67.324 | 1.78 ± 0.21 |
 | colima          | 74.992 | 0.647 | 73.949 | 75.518 | 2.25 ± 0.17 |
 
-Sometimes, orbstack actually _beats_ native performance, which I don't actually understand. Every time, it's been within the margin of error compared to native, which is very imporessive.
+orbstack and docker desktop are about 10% slower than native. This is actually better performance form docker desktop than I've seen in the past - I have definitely experienced 2x install times before.
 
 Apple `container` is slower, and colima slower still.
 
