@@ -1,3 +1,7 @@
 [tools]
 hyperfine = "latest"
 node = "24.16.0"
+python = "latest"
+
+[tasks.serve]
+run="devd -A localhost -ol ."

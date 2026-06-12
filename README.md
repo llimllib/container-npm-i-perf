@@ -11,14 +11,15 @@ The process is:
 
 The versions under test here are:
 
-| software  | version                                                                            |
-| :-------- | :--------------------------------------------------------------------------------- |
-| node      | v24.16.0                                                                           |
-| npm       | 11.13.0                                                                            |
-| container | container CLI version 1.0.0 (build: release, commit: ee848e3)                      |
-| orb       | Version: 2.2.1 (2020100) Commit: 0e182b501fcd9e05b99ffb363fce03610390c400 (v2.2.1) |
-| colima    | colima version 0.10.3                                                              |
-| hyperfine | hyperfine 1.20.0                                                                   |
+| software       | version                                                                            |
+| :------------- | :--------------------------------------------------------------------------------- |
+| node           | v24.16.0                                                                           |
+| npm            | 11.13.0                                                                            |
+| docker desktop | 29.5.3                                                                             |
+| container      | container CLI version 1.0.0 (build: release, commit: ee848e3)                      |
+| orb            | Version: 2.2.1 (2020100) Commit: 0e182b501fcd9e05b99ffb363fce03610390c400 (v2.2.1) |
+| colima         | colima version 0.10.3                                                              |
+| hyperfine      | hyperfine 1.20.0                                                                   |
 
 I'm using the `node:24.16.0-slim` image available as of jun 10
 
@@ -29,6 +30,7 @@ I'm using the `node:24.16.0-slim` image available as of jun 10
 | **Native (host)**      | `npm install` directly on macOS (Apple Silicon), cold cache               |
 | **OrbStack**           | `docker run` via OrbStack, volume mount                                   |
 | **Apple Container**    | `container run` with `-v` volume mount (Apple's native container runtime) |
+| **Docker Desktop**     | `docker run` via Docker Desktop with default settings (virtiofs)          |
 | **Colima vz+virtiofs** | `docker run` via Colima using the `vz` VM backend + `virtiofs` mount type |
 
 All container tests mount the project directory as a volume, so `node_modules` is written across the virtualization boundary.
@@ -39,12 +41,13 @@ All container tests mount the project directory as a volume, so `node_modules` i
 
 all times in seconds. Test was done on a macbook m2 max with 32gb of memory, connected to power
 
-| Test            | mean   | stdev  | min    | max     | ratio       |
-| :-------------- | :----- | :----- | :----- | :------ | :---------- |
-| native          | 37.692 | 5.095  | 31.144 | 42.718  | 1           |
-| orbstack        | 37.815 | 2.344  | 34.054 | 39.667  | 1.00 ± 0.15 |
-| apple container | 62.843 | 7.504  | 52.913 | 71.785  | 1.67 ± 0.30 |
-| colima          | 89.014 | 12.939 | 77.455 | 109.065 | 2.36 ± 0.47 |
+| Test            | mean   | stdev | min    | max    | ratio       |
+| :-------------- | :----- | :---- | :----- | :----- | :---------- |
+| native          | 33.275 | 2.547 | 29.696 | 35.860 | 1           |
+| orbstack        | 36.890 | 2.132 | 34.463 | 39.615 | 1.11 ± 0.11 |
+| docker desktop  | 37.378 | 3.011 | 33.026 | 40.775 | 1.12 ± 0.12 |
+| apple container | 59.150 | 5.284 | 53.463 | 67.324 | 1.78 ± 0.21 |
+| colima          | 74.992 | 0.647 | 73.949 | 75.518 | 2.25 ± 0.17 |
 
 Sometimes, orbstack actually _beats_ native performance, which I don't actually understand. Every time, it's been within the margin of error compared to native, which is very imporessive.
 
@@ -60,10 +63,12 @@ mise install
 # Start all runtimes
 colima start --vm-type vz --mount-type virtiofs
 container system start
+# Docker Desktop: install from https://docker.com/products/docker-desktop and start the app
 # OrbStack: install from https://orbstack.dev and start the app
 
 # Pull the node image into each runtime
 docker --context colima pull node:24.16.0-slim
+docker --context desktop-linux pull node:24.16.0-slim
 docker --context orbstack pull node:24.16.0-slim
 container image pull node:24.16.0-slim
 
